@@ -656,5 +656,38 @@ pub fn main() !void {
     std.debug.print("[INFO] initial temperature: {d:.2} K\n", .{system.measureTemperature()});
     std.debug.print("[INFO] initial energy lj: {d:.2} kcal/mol\n", .{system.energy.lj});
     std.debug.print("[INFO] initial energy kinetic: {d:.2} kcal/mol\n", .{system.energy.kinetic});
+    std.debug.print("[INFO] initial energy total: {d:.2} kcal/mol\n", .{system.energy.lj + system.energy.kinetic});
     std.debug.print("[INFO]\n", .{});
+
+    // Run dynamics
+    if (cfg.dynamics) |dynamics| {
+        if (dynamics.steps) |steps| {
+            for (0..steps) |step| {
+                system.updateForceLJ();
+                for (system.r, system.v, system.f, system.m) |*r, *v, *f, m| {
+                    v[0] += f[0] / m * dynamics.dt.?;
+                    v[1] += f[1] / m * dynamics.dt.?;
+                    v[2] += f[2] / m * dynamics.dt.?;
+
+                    r[0] += v[0] * dynamics.dt.?;
+                    r[1] += v[1] * dynamics.dt.?;
+                    r[2] += v[2] * dynamics.dt.?;
+
+                    system.boundary.wrap(r);
+                }
+
+                system.updateForceEnergyLJ();
+                system.updateEnergyKinetic();
+
+                if (step % 100 == 0) {
+                    std.debug.print("[INFO] STEP {d}\n", .{step});
+                    std.debug.print("[INFO] temperature: {d:.2} K\n", .{system.measureTemperature()});
+                    std.debug.print("[INFO] energy lj: {d:.2} kcal/mol\n", .{system.energy.lj});
+                    std.debug.print("[INFO] energy kinetic: {d:.2} kcal/mol\n", .{system.energy.kinetic});
+                    std.debug.print("[INFO] initial energy total: {d:.2} kcal/mol\n", .{system.energy.lj + system.energy.kinetic});
+                    std.debug.print("[INFO]\n", .{});
+                }
+            }
+        }
+    }
 }
