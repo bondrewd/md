@@ -392,10 +392,6 @@ const System = struct {
         }
     }
 
-    fn zeroForce(self: *Self) void {
-        for (self.f) |*f| f.* = .{ 0, 0, 0 };
-    }
-
     fn setRandomVelocitiesWithTemperature(self: *Self, rng: std.Random, temperature: f64) void {
         self.setRandomVelocities(rng);
         const target_temperature = temperature;
@@ -406,6 +402,14 @@ const System = struct {
             v[1] *= scaling_factor;
             v[2] *= scaling_factor;
         }
+    }
+
+    fn zeroForce(self: *Self) void {
+        for (self.f) |*f| f.* = .{ 0, 0, 0 };
+    }
+
+    fn wrapCoordinates(self: *Self) void {
+        for (self.r) |*r| self.boundary.wrap(r);
     }
 
     fn updateForceLJ(self: *Self) void {
@@ -631,6 +635,7 @@ pub fn main() !void {
     system.setFromCfg(cfg);
     system.setFromCrd(crd);
     system.setFromTopPar(top, par);
+    system.wrapCoordinates();
 
     // Initialize velocities
     if (cfg.dynamics) |dynamics| {
@@ -640,6 +645,10 @@ pub fn main() !void {
             system.setRandomVelocities(rng);
         }
     }
+
+    // Initialize force
+    system.zeroForce();
+    system.updateForceLJ();
 
     // Initialize energy
     system.updateEnergyLJ();
@@ -658,20 +667,27 @@ pub fn main() !void {
         const steps = dynamics.steps.?;
         const dt = dynamics.dt.?;
         for (0..steps) |step| {
-            system.zeroForce();
-            system.updateForceLJ();
-            for (system.r, system.v, system.f, system.m) |*r, *v, *f, m| {
+            // Update coordinates and velocities
+            for (system.r, system.v, system.f, system.m) |*r, *v, f, m| {
                 r[0] += v[0] * dt + f[0] * dt * dt / (2 * m);
                 r[1] += v[1] * dt + f[1] * dt * dt / (2 * m);
                 r[2] += v[2] * dt + f[2] * dt * dt / (2 * m);
-
-                v[0] += f[0] * dt / m;
-                v[1] += f[1] * dt / m;
-                v[2] += f[2] * dt / m;
-
-                system.boundary.wrap(r);
+                v[0] += f[0] * dt / (2 * m);
+                v[1] += f[1] * dt / (2 * m);
+                v[2] += f[2] * dt / (2 * m);
             }
-
+            // Wrap coordinates
+            system.wrapCoordinates();
+            // Update forces
+            system.zeroForce();
+            system.updateForceLJ();
+            // Update velocities
+            for (system.v, system.f, system.m) |*v, f, m| {
+                v[0] += f[0] * dt / (2 * m);
+                v[1] += f[1] * dt / (2 * m);
+                v[2] += f[2] * dt / (2 * m);
+            }
+            // Update energy
             system.updateEnergyLJ();
             system.updateEnergyKinetic();
 
