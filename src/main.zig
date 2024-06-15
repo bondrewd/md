@@ -241,6 +241,11 @@ const Top = struct {
     }
 };
 
+const Energy = struct {
+    kinetic: f64,
+    lj: f64,
+};
+
 const System = struct {
     n: u64,
     r: [][3]f64,
@@ -251,6 +256,7 @@ const System = struct {
     e: []f64,
     s: []f64,
     id: []u64,
+    energy: Energy,
     allocator: std.mem.Allocator,
 
     const Self = @This();
@@ -266,6 +272,7 @@ const System = struct {
             .e = try allocator.alloc(f64, n),
             .s = try allocator.alloc(f64, n),
             .id = try allocator.alloc(u64, n),
+            .energy = .{ .kinetic = undefined, .lj = undefined },
             .allocator = allocator,
         };
         return new_system;
@@ -357,6 +364,68 @@ const System = struct {
             v[0] *= scaling_factor;
             v[1] *= scaling_factor;
             v[2] *= scaling_factor;
+        }
+    }
+
+    fn updateForce(self: *Self) void {
+        for (0..self.n - 1) |i| {
+            const ri = self.r[i];
+            const ei = self.e[i];
+            const si = self.s[i];
+            for (i + 1..self.n) |j| {
+                const ej = self.e[j];
+                const sj = self.s[j];
+                const e = @sqrt(ei + ej);
+                const s = (si + sj) / 2;
+                const rj = self.r[j];
+                const dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
+                const c2 = s / (dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+                const c4 = c2 * c2;
+                const c6 = c4 * c2;
+                const c8 = c4 * c4;
+                const force = 48 * e * c8 * (c6 - 0.5) / (s * s);
+
+                self.f[i][0] += force * dr[0];
+                self.f[i][1] += force * dr[1];
+                self.f[i][2] += force * dr[2];
+
+                self.f[j][0] -= force * dr[0];
+                self.f[j][1] -= force * dr[1];
+                self.f[j][2] -= force * dr[2];
+            }
+        }
+    }
+
+    fn updateForceEnergy(self: *Self) void {
+        self.energy.lj = 0.0;
+        for (0..self.n - 1) |i| {
+            const ri = self.r[i];
+            const ei = self.e[i];
+            const si = self.s[i];
+            for (i + 1..self.n) |j| {
+                const ej = self.e[j];
+                const sj = self.s[j];
+                const e = @sqrt(ei + ej);
+                const s = (si + sj) / 2;
+                const rj = self.r[j];
+                const dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
+                const c2 = s / (dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+                const c4 = c2 * c2;
+                const c6 = c4 * c2;
+                const c8 = c4 * c4;
+                const force = 48 * e * c8 * (c6 - 0.5) / (s * s);
+                const energy = 4 * e * c6 * (c6 - 1);
+
+                self.f[i][0] += force * dr[0];
+                self.f[i][1] += force * dr[1];
+                self.f[i][2] += force * dr[2];
+
+                self.f[j][0] -= force * dr[0];
+                self.f[j][1] -= force * dr[1];
+                self.f[j][2] -= force * dr[2];
+
+                self.energy.lj += energy;
+            }
         }
     }
 
@@ -528,6 +597,10 @@ pub fn main() !void {
             system.setRandomVelocities(rng);
         }
     }
-    std.debug.print("[INFO] initial temperature: {d:.2}K\n", .{system.measureTemperature()});
+    std.debug.print("[INFO] initial temperature: {d:.2} K\n", .{system.measureTemperature()});
+
+    // Initialize force and energy
+    system.updateForceEnergy();
+    std.debug.print("[INFO] initial energy lj: {d:.2} kcal/mol\n", .{system.energy.lj});
     std.debug.print("[INFO]\n", .{});
 }
