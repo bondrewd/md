@@ -246,6 +246,29 @@ const Energy = struct {
     lj: f64,
 };
 
+const Boundary = struct {
+    x: ?f64 = null,
+    y: ?f64 = null,
+    z: ?f64 = null,
+    xh: ?f64 = null,
+    yh: ?f64 = null,
+    zh: ?f64 = null,
+
+    const Self = @This();
+
+    fn wrap(self: *Self, r: *[3]f64) void {
+        if (self.xh) |xh| {
+            if (r[0] > xh or r[0] < -xh) r[0] -= self.x.? * @round(r[0] / self.x.?);
+        }
+        if (self.y) |yh| {
+            if (r[0] > yh or r[0] < -yh) r[0] -= self.y.? * @round(r[0] / self.y.?);
+        }
+        if (self.z) |zh| {
+            if (r[0] > zh or r[0] < -zh) r[0] -= self.z.? * @round(r[0] / self.z.?);
+        }
+    }
+};
+
 const System = struct {
     n: u64,
     r: [][3]f64,
@@ -257,6 +280,7 @@ const System = struct {
     s: []f64,
     id: []u64,
     energy: Energy,
+    boundary: Boundary,
     allocator: std.mem.Allocator,
 
     const Self = @This();
@@ -273,6 +297,7 @@ const System = struct {
             .s = try allocator.alloc(f64, n),
             .id = try allocator.alloc(u64, n),
             .energy = .{ .kinetic = undefined, .lj = undefined },
+            .boundary = .{},
             .allocator = allocator,
         };
         return new_system;
@@ -287,6 +312,18 @@ const System = struct {
         self.allocator.free(self.e);
         self.allocator.free(self.s);
         self.allocator.free(self.id);
+    }
+
+    fn setFromCfg(self: *Self, cfg: Cfg) void {
+        if (cfg.boundary) |boundary| {
+            if (boundary.x) |x| self.boundary.x = x;
+            if (boundary.y) |y| self.boundary.y = y;
+            if (boundary.z) |z| self.boundary.z = z;
+        }
+
+        if (self.boundary.x) |x| self.boundary.xh = x / 2;
+        if (self.boundary.y) |y| self.boundary.yh = y / 2;
+        if (self.boundary.z) |z| self.boundary.zh = z / 2;
     }
 
     fn setFromCrd(self: *Self, crd: Crd) void {
@@ -367,7 +404,7 @@ const System = struct {
         }
     }
 
-    fn updateForce(self: *Self) void {
+    fn updateForceLJ(self: *Self) void {
         for (0..self.n - 1) |i| {
             const ri = self.r[i];
             const ei = self.e[i];
@@ -377,8 +414,11 @@ const System = struct {
                 const sj = self.s[j];
                 const e = @sqrt(ei + ej);
                 const s = (si + sj) / 2;
+
                 const rj = self.r[j];
-                const dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
+                var dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
+                self.boundary.wrap(&dr);
+
                 const c2 = s / (dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
                 const c4 = c2 * c2;
                 const c6 = c4 * c2;
@@ -396,7 +436,7 @@ const System = struct {
         }
     }
 
-    fn updateForceEnergy(self: *Self) void {
+    fn updateForceEnergyLJ(self: *Self) void {
         self.energy.lj = 0.0;
         for (0..self.n - 1) |i| {
             const ri = self.r[i];
@@ -407,8 +447,11 @@ const System = struct {
                 const sj = self.s[j];
                 const e = @sqrt(ei + ej);
                 const s = (si + sj) / 2;
+
                 const rj = self.r[j];
-                const dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
+                var dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
+                self.boundary.wrap(&dr);
+
                 const c2 = s / (dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
                 const c4 = c2 * c2;
                 const c6 = c4 * c2;
@@ -426,6 +469,13 @@ const System = struct {
 
                 self.energy.lj += energy;
             }
+        }
+    }
+
+    fn updateEnergyKinetic(self: *Self) void {
+        self.energy.kinetic = 0.0;
+        for (self.v, self.m) |v, m| {
+            self.energy.kinetic += (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) * m / 2;
         }
     }
 
@@ -582,11 +632,10 @@ pub fn main() !void {
     std.debug.print("[INFO]\n", .{});
 
     // Initialize system
-    std.debug.print("[INFO] SETUP SYSTEM\n", .{});
     var system = try System.init(allocator, crd.coordinates.len);
     defer system.deinit();
+    system.setFromCfg(cfg);
     system.setFromCrd(crd);
-    std.debug.print("[INFO] number of particles: {d}\n", .{system.n});
     system.setFromTopPar(top, par);
 
     // Initialize velocities
@@ -597,10 +646,15 @@ pub fn main() !void {
             system.setRandomVelocities(rng);
         }
     }
-    std.debug.print("[INFO] initial temperature: {d:.2} K\n", .{system.measureTemperature()});
 
     // Initialize force and energy
-    system.updateForceEnergy();
+    system.updateForceEnergyLJ();
+    system.updateEnergyKinetic();
+
+    std.debug.print("[INFO] SETUP SYSTEM\n", .{});
+    std.debug.print("[INFO] number of particles: {d}\n", .{system.n});
+    std.debug.print("[INFO] initial temperature: {d:.2} K\n", .{system.measureTemperature()});
     std.debug.print("[INFO] initial energy lj: {d:.2} kcal/mol\n", .{system.energy.lj});
+    std.debug.print("[INFO] initial energy kinetic: {d:.2} kcal/mol\n", .{system.energy.kinetic});
     std.debug.print("[INFO]\n", .{});
 }
