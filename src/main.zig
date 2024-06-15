@@ -196,8 +196,7 @@ const Class = struct {
 };
 
 const LJ = struct {
-    name1: []const u8,
-    name2: []const u8,
+    name: []const u8,
     epsilon: f64,
     sigma: f64,
 };
@@ -217,7 +216,7 @@ const Par = struct {
 
         std.debug.print("[INFO] LJ\n", .{});
         for (self.lj) |lj| {
-            std.debug.print("[INFO] name1 = {s}, name2 = {s}, epsilon = {d}, sigma = {d}\n", .{ lj.name1, lj.name2, lj.epsilon, lj.sigma });
+            std.debug.print("[INFO] name = {s}, epsilon = {d}, sigma = {d}\n", .{ lj.name, lj.epsilon, lj.sigma });
         }
         std.debug.print("[INFO]\n", .{});
     }
@@ -249,6 +248,8 @@ const System = struct {
     f: [][3]f64,
     m: []f64,
     q: []f64,
+    e: []f64,
+    s: []f64,
     id: []u64,
     allocator: std.mem.Allocator,
 
@@ -262,6 +263,8 @@ const System = struct {
             .f = try allocator.alloc([3]f64, n),
             .m = try allocator.alloc(f64, n),
             .q = try allocator.alloc(f64, n),
+            .e = try allocator.alloc(f64, n),
+            .s = try allocator.alloc(f64, n),
             .id = try allocator.alloc(u64, n),
             .allocator = allocator,
         };
@@ -274,6 +277,8 @@ const System = struct {
         self.allocator.free(self.f);
         self.allocator.free(self.m);
         self.allocator.free(self.q);
+        self.allocator.free(self.e);
+        self.allocator.free(self.s);
         self.allocator.free(self.id);
     }
 
@@ -284,11 +289,9 @@ const System = struct {
         }
     }
 
-    fn setFromTopPar(self: *Self, top: Top, par: Par) !void {
-        for (self.id, self.m, self.q) |id, *m, *q| {
+    fn setFromTopPar(self: *Self, top: Top, par: Par) void {
+        for (self.id, self.m, self.q, self.e, self.s) |id, *m, *q, *e, *s| {
             var particle: ?Particle = null;
-            var class: ?Class = null;
-
             for (top.particles) |top_particle| {
                 if (top_particle.id == id) {
                     particle = top_particle;
@@ -296,8 +299,12 @@ const System = struct {
                 }
             }
 
-            if (particle == null) return error.ParticleNotFound;
+            if (particle == null) {
+                std.debug.print("[ERROR] Particle with id {d} not found\n", .{id});
+                std.process.exit(0);
+            }
 
+            var class: ?Class = null;
             for (par.classes) |par_class| {
                 if (std.mem.eql(u8, par_class.name, particle.?.name)) {
                     class = par_class;
@@ -305,10 +312,29 @@ const System = struct {
                 }
             }
 
-            if (class == null) return error.ClassNotFound;
+            if (class == null) {
+                std.debug.print("[ERROR] Class with name {s} not found\n", .{particle.?.name});
+                std.process.exit(0);
+            }
 
             m.* = class.?.mass;
             q.* = class.?.charge;
+
+            var lj: ?LJ = null;
+            for (par.lj) |par_lj| {
+                if (std.mem.eql(u8, par_lj.name, particle.?.name)) {
+                    lj = par_lj;
+                    break;
+                }
+            }
+
+            if (lj == null) {
+                std.debug.print("[ERROR] lj parameters for name {s} not found\n", .{particle.?.name});
+                std.process.exit(0);
+            }
+
+            e.* = lj.?.epsilon;
+            s.* = lj.?.sigma;
         }
     }
 
@@ -487,19 +513,18 @@ pub fn main() !void {
     std.debug.print("[INFO]\n", .{});
 
     // Initialize system
+    std.debug.print("[INFO] SETUP SYSTEM\n", .{});
     var system = try System.init(allocator, crd.coordinates.len);
     defer system.deinit();
     system.setFromCrd(crd);
-    try system.setFromTopPar(top, par);
+    std.debug.print("[INFO] number of particles: {d}\n", .{system.n});
+    system.setFromTopPar(top, par);
 
     // Initialize velocities
-    std.debug.print("[INFO] SETUP SYSTEM\n", .{});
     if (cfg.dynamics) |dynamics| {
         if (dynamics.temperature) |temperature| {
-            std.debug.print("[INFO] initializing velocities randomly at {d:.2}K\n", .{temperature});
             system.setRandomVelocitiesWithTemperature(rng, temperature);
         } else {
-            std.debug.print("[INFO] initializing velocities randomly \n", .{});
             system.setRandomVelocities(rng);
         }
     }
