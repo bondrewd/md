@@ -43,7 +43,7 @@ const BoundaryBlock = struct {
     z: ?f64 = null,
 };
 
-const Configuration = struct {
+const Cfg = struct {
     input: InputBlock,
     output: ?OutputBlock = null,
     dynamics: ?DynamicsBlock = null,
@@ -130,9 +130,77 @@ const Configuration = struct {
 };
 
 const Coordinate = struct {
+    id: u64,
     x: f64,
     y: f64,
     z: f64,
+};
+
+const Crd = struct {
+    coordinates: []Coordinate,
+
+    const Self = @This();
+
+    fn display(self: *const Self) void {
+        std.debug.print("[INFO] CRD\n", .{});
+        for (self.coordinates) |coordinate| {
+            std.debug.print("[INFO] id = {d}, x = {d}, y = {d}, z = {d}\n", .{ coordinate.id, coordinate.x, coordinate.y, coordinate.z });
+        }
+        std.debug.print("[INFO]\n", .{});
+    }
+};
+
+const Class = struct {
+    name: []const u8,
+    mass: f64,
+    charge: f64,
+};
+
+const LJ = struct {
+    class1: []const u8,
+    class2: []const u8,
+    epsilon: f64,
+    sigma: f64,
+};
+
+const Par = struct {
+    classes: []const Class,
+    lj: []const LJ,
+
+    const Self = @This();
+
+    fn display(self: *const Self) void {
+        std.debug.print("[INFO] CLASSES\n", .{});
+        for (self.classes) |class| {
+            std.debug.print("[INFO] name = {s}, mass = {d}, charge = {d}\n", .{ class.name, class.mass, class.charge });
+        }
+        std.debug.print("[INFO]\n", .{});
+
+        std.debug.print("[INFO] LJ\n", .{});
+        for (self.lj) |lj| {
+            std.debug.print("[INFO] class1 = {s}, class2 = {s}, epsilon = {d}, sigma = {d}\n", .{ lj.class1, lj.class2, lj.epsilon, lj.sigma });
+        }
+        std.debug.print("[INFO]\n", .{});
+    }
+};
+
+const Particle = struct {
+    id: u64,
+    class: []const u8,
+};
+
+const Top = struct {
+    particles: []Particle,
+
+    const Self = @This();
+
+    fn display(self: *const Self) void {
+        std.debug.print("[INFO] TOP\n", .{});
+        for (self.particles) |particle| {
+            std.debug.print("[INFO] id = {d}, class = {s}\n", .{ particle.id, particle.class });
+        }
+        std.debug.print("[INFO]\n", .{});
+    }
 };
 
 pub fn main() !void {
@@ -152,6 +220,7 @@ pub fn main() !void {
         return;
     }
 
+    // Read configuration file
     const cfg_file_path = args[1];
     const cfg_file = std.fs.cwd().openFile(cfg_file_path, .{}) catch |err| switch (err) {
         error.FileNotFound => {
@@ -168,15 +237,15 @@ pub fn main() !void {
     const cfg_data = try cfg_file.readToEndAlloc(allocator, 1 << 10);
     defer allocator.free(cfg_data);
 
-    const parsed = try std.json.parseFromSlice(Configuration, allocator, cfg_data, .{});
-    defer parsed.deinit();
+    const cfg_parsed = try std.json.parseFromSlice(Cfg, allocator, cfg_data, .{});
+    defer cfg_parsed.deinit();
 
-    const cfg = parsed.value;
+    const cfg = cfg_parsed.value;
     cfg.display();
 
-    const cfg_file_dir = std.fs.path.dirname(cfg_file_path);
+    // Read coordinate file
     var crd_file_path: []u8 = undefined;
-    if (cfg_file_dir) |dir| {
+    if (std.fs.path.dirname(cfg_file_path)) |dir| {
         crd_file_path = try std.fs.path.join(allocator, &[_][]const u8{ dir, cfg.input.crd });
     } else {
         crd_file_path = try std.fs.path.join(allocator, &[_][]const u8{ ".", cfg.input.crd });
@@ -197,31 +266,67 @@ pub fn main() !void {
     const crd_data = try crd_file.readToEndAlloc(allocator, 1 << 20);
     defer allocator.free(crd_data);
 
-    var crd = std.AutoHashMap(u64, Coordinate).init(allocator);
-    defer crd.deinit();
+    const crd_parsed = try std.json.parseFromSlice(Crd, allocator, crd_data, .{});
+    defer crd_parsed.deinit();
 
-    var lines = std.mem.splitSequence(u8, crd_data, "\n");
-    while (lines.next()) |line| {
-        if (line.len == 0) continue;
-        if (std.mem.startsWith(u8, line, "#")) continue;
-        var tokens = std.mem.splitSequence(u8, line, ",");
-        const i = try std.fmt.parseInt(u64, tokens.next().?, 10);
-        const x = try std.fmt.parseFloat(f64, tokens.next().?);
-        const y = try std.fmt.parseFloat(f64, tokens.next().?);
-        const z = try std.fmt.parseFloat(f64, tokens.next().?);
-        const old = try crd.fetchPut(i, Coordinate{ .x = x, .y = y, .z = z });
-        if (old) |_| {
-            std.debug.print("[ERROR] Duplicate index {d} in crd file\n", .{i});
+    const crd = crd_parsed.value;
+    crd.display();
+
+    // Read parameter file
+    var par_file_path: []u8 = undefined;
+    if (std.fs.path.dirname(cfg_file_path)) |dir| {
+        par_file_path = try std.fs.path.join(allocator, &[_][]const u8{ dir, cfg.input.par });
+    } else {
+        par_file_path = try std.fs.path.join(allocator, &[_][]const u8{ ".", cfg.input.par });
+    }
+    defer allocator.free(par_file_path);
+    const par_file = std.fs.cwd().openFile(par_file_path, .{}) catch |err| switch (err) {
+        error.FileNotFound => {
+            std.debug.print("[ERROR] File '{s}' not found\n", .{par_file_path});
             return;
-        }
-    }
+        },
+        else => {
+            std.debug.print("[ERROR] Unable to open file '{s}'\n", .{par_file_path});
+            return;
+        },
+    };
+    defer par_file.close();
 
-    var entries = crd.iterator();
-    while (entries.next()) |entry| {
-        const i = entry.key_ptr.*;
-        const x = entry.value_ptr.x;
-        const y = entry.value_ptr.y;
-        const z = entry.value_ptr.z;
-        std.debug.print("[INFO] i = {d}, x = {d}, y = {d}, z = {d}\n", .{ i, x, y, z });
+    const par_data = try par_file.readToEndAlloc(allocator, 1 << 20);
+    defer allocator.free(par_data);
+
+    const par_parsed = try std.json.parseFromSlice(Par, allocator, par_data, .{});
+    defer par_parsed.deinit();
+
+    const par = par_parsed.value;
+    par.display();
+
+    // Read parameter file
+    var top_file_path: []u8 = undefined;
+    if (std.fs.path.dirname(cfg_file_path)) |dir| {
+        top_file_path = try std.fs.path.join(allocator, &[_][]const u8{ dir, cfg.input.top });
+    } else {
+        top_file_path = try std.fs.path.join(allocator, &[_][]const u8{ ".", cfg.input.top });
     }
+    defer allocator.free(top_file_path);
+    const top_file = std.fs.cwd().openFile(top_file_path, .{}) catch |err| switch (err) {
+        error.FileNotFound => {
+            std.debug.print("[ERROR] File '{s}' not found\n", .{top_file_path});
+            return;
+        },
+        else => {
+            std.debug.print("[ERROR] Unable to open file '{s}'\n", .{top_file_path});
+            return;
+        },
+    };
+    defer top_file.close();
+
+    const top_data = try top_file.readToEndAlloc(allocator, 1 << 20);
+    defer allocator.free(top_data);
+
+    const top_topsed = try std.json.parseFromSlice(Top, allocator, top_data, .{});
+    defer top_topsed.deinit();
+
+    const top = top_topsed.value;
+    top.display();
 }

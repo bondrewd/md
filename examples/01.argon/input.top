@@ -1,0 +1,12 @@
+{
+    "particles": [
+        { "id": 0, "class": "Ar" },
+        { "id": 1, "class": "Ar" },
+        { "id": 2, "class": "Ar" },
+        { "id": 3, "class": "Ar" },
+        { "id": 4, "class": "Ar" },
+        { "id": 5, "class": "Ar" },
+        { "id": 6, "class": "Ar" },
+        { "id": 7, "class": "Ar" }
+    ]
+}
