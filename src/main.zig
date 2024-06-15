@@ -51,7 +51,7 @@ const Cfg = struct {
 
     const Self = @This();
 
-    fn display(self: *const Self) void {
+    fn log(self: *const Self) void {
         std.debug.print("[INFO] INPUT\n", .{});
         std.debug.print("[INFO] crd = {s}\n", .{self.input.crd});
         std.debug.print("[INFO] par = {s}\n", .{self.input.par});
@@ -141,7 +141,7 @@ const Crd = struct {
 
     const Self = @This();
 
-    fn display(self: *const Self) void {
+    fn log(self: *const Self) void {
         std.debug.print("[INFO] CRD\n", .{});
         for (self.coordinates) |coordinate| {
             std.debug.print("[INFO] id = {d}, x = {d}, y = {d}, z = {d}\n", .{ coordinate.id, coordinate.x, coordinate.y, coordinate.z });
@@ -169,7 +169,7 @@ const Par = struct {
 
     const Self = @This();
 
-    fn display(self: *const Self) void {
+    fn log(self: *const Self) void {
         std.debug.print("[INFO] CLASSES\n", .{});
         for (self.classes) |class| {
             std.debug.print("[INFO] name = {s}, mass = {d}, charge = {d}\n", .{ class.name, class.mass, class.charge });
@@ -194,12 +194,43 @@ const Top = struct {
 
     const Self = @This();
 
-    fn display(self: *const Self) void {
+    fn log(self: *const Self) void {
         std.debug.print("[INFO] TOP\n", .{});
         for (self.particles) |particle| {
             std.debug.print("[INFO] id = {d}, class = {s}\n", .{ particle.id, particle.class });
         }
         std.debug.print("[INFO]\n", .{});
+    }
+};
+
+const System = struct {
+    r: [][3]f64,
+    v: [][3]f64,
+    f: [][3]f64,
+    m: []f64,
+    q: []f64,
+    allocator: std.mem.Allocator,
+
+    const Self = @This();
+
+    fn init(allocator: std.mem.Allocator, n: u64) !Self {
+        const new_system = Self{
+            .r = try allocator.alloc([3]f64, n),
+            .v = try allocator.alloc([3]f64, n),
+            .f = try allocator.alloc([3]f64, n),
+            .m = try allocator.alloc(f64, n),
+            .q = try allocator.alloc(f64, n),
+            .allocator = allocator,
+        };
+        return new_system;
+    }
+
+    fn deinit(self: *System) void {
+        self.allocator.free(self.r);
+        self.allocator.free(self.v);
+        self.allocator.free(self.f);
+        self.allocator.free(self.m);
+        self.allocator.free(self.q);
     }
 };
 
@@ -241,7 +272,7 @@ pub fn main() !void {
     defer cfg_parsed.deinit();
 
     const cfg = cfg_parsed.value;
-    cfg.display();
+    cfg.log();
 
     // Read coordinate file
     var crd_file_path: []u8 = undefined;
@@ -270,7 +301,7 @@ pub fn main() !void {
     defer crd_parsed.deinit();
 
     const crd = crd_parsed.value;
-    crd.display();
+    crd.log();
 
     // Read parameter file
     var par_file_path: []u8 = undefined;
@@ -299,7 +330,7 @@ pub fn main() !void {
     defer par_parsed.deinit();
 
     const par = par_parsed.value;
-    par.display();
+    par.log();
 
     // Read parameter file
     var top_file_path: []u8 = undefined;
@@ -328,5 +359,9 @@ pub fn main() !void {
     defer top_topsed.deinit();
 
     const top = top_topsed.value;
-    top.display();
+    top.log();
+
+    // Initialize system
+    var system = try System.init(allocator, crd.coordinates.len);
+    defer system.deinit();
 }
