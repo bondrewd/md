@@ -3,6 +3,6 @@
         { "name": "Ar", "mass": 39.948, "charge": 0.0 }
     ],
     "lj": [
-        { "class1": "Ar", "class2": "Ar", "epsilon": 0.238, "sigma": 3.4 }
+        { "name1": "Ar", "name2": "Ar", "epsilon": 0.238, "sigma": 3.4 }
     ]
 }

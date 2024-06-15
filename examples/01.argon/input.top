@@ -1,12 +1,12 @@
 {
     "particles": [
-        { "id": 0, "class": "Ar" },
-        { "id": 1, "class": "Ar" },
-        { "id": 2, "class": "Ar" },
-        { "id": 3, "class": "Ar" },
-        { "id": 4, "class": "Ar" },
-        { "id": 5, "class": "Ar" },
-        { "id": 6, "class": "Ar" },
-        { "id": 7, "class": "Ar" }
+        { "id": 0, "name": "Ar" },
+        { "id": 1, "name": "Ar" },
+        { "id": 2, "name": "Ar" },
+        { "id": 3, "name": "Ar" },
+        { "id": 4, "name": "Ar" },
+        { "id": 5, "name": "Ar" },
+        { "id": 6, "name": "Ar" },
+        { "id": 7, "name": "Ar" }
     ]
 }

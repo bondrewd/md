@@ -1,14 +1,41 @@
 const std = @import("std");
 
+const BOLTZMANN = 1.987204259e-3;
+
 const InputBlock = struct {
     crd: []u8,
     par: []u8,
     top: []u8,
+
+    const Self = @This();
+
+    fn log(self: *const Self) void {
+        std.debug.print("[INFO] INPUT\n", .{});
+        std.debug.print("[INFO] crd = {s}\n", .{self.crd});
+        std.debug.print("[INFO] par = {s}\n", .{self.par});
+        std.debug.print("[INFO] top = {s}\n", .{self.top});
+    }
 };
 
 const OutputBlock = struct {
     crd: ?[]u8 = null,
     trj: ?[]u8 = null,
+
+    const Self = @This();
+
+    fn log(self: *const Self) void {
+        std.debug.print("[INFO] OUTPUT\n", .{});
+        if (self.crd) |crd| {
+            std.debug.print("[INFO] crd = {s}\n", .{crd});
+        } else {
+            std.debug.print("[INFO] crd =\n", .{});
+        }
+        if (self.trj) |trj| {
+            std.debug.print("[INFO] trj = {s}\n", .{trj});
+        } else {
+            std.debug.print("[INFO] trj =\n", .{});
+        }
+    }
 };
 
 const EnsembleKind = enum {
@@ -35,12 +62,79 @@ const DynamicsBlock = struct {
     pressure: ?f64 = null,
     thermostat: ?ThermostatKind = null,
     barostat: ?BarostatKind = null,
+
+    const Self = @This();
+
+    fn log(self: *const Self) void {
+        std.debug.print("[INFO] DYNAMICS\n", .{});
+        if (self.dt) |dt| {
+            std.debug.print("[INFO] dt = {d}\n", .{dt});
+        } else {
+            std.debug.print("[INFO] dt =\n", .{});
+        }
+        if (self.steps) |steps| {
+            std.debug.print("[INFO] steps = {d}\n", .{steps});
+        } else {
+            std.debug.print("[INFO] steps =\n", .{});
+        }
+        if (self.ensemble) |ensemble| {
+            std.debug.print("[INFO] ensemble = {s}\n", .{@tagName(ensemble)});
+        } else {
+            std.debug.print("[INFO] ensemble =\n", .{});
+        }
+        if (self.temperature) |temperature| {
+            std.debug.print("[INFO] temperature = {d}\n", .{temperature});
+        } else {
+            std.debug.print("[INFO] temperature =\n", .{});
+        }
+        if (self.pressure) |pressure| {
+            std.debug.print("[INFO] pressure = {d}\n", .{pressure});
+        } else {
+            std.debug.print("[INFO] pressure =\n", .{});
+        }
+        if (self.thermostat) |thermostat| {
+            std.debug.print("[INFO] thermostat = {s}\n", .{@tagName(thermostat)});
+        } else {
+            std.debug.print("[INFO] thermostat =\n", .{});
+        }
+        if (self.barostat) |barostat| {
+            std.debug.print("[INFO] barostat = {s}\n", .{@tagName(barostat)});
+        } else {
+            std.debug.print("[INFO] barostat =\n", .{});
+        }
+    }
+};
+
+const Rng = struct {
+    seed: u64,
+
+    const Self = @This();
+
+    fn log(self: *const Self) void {
+        std.debug.print("[INFO] RNG\n", .{});
+        std.debug.print("[INFO] seed = {d}\n", .{self.seed});
+    }
 };
 
 const BoundaryBlock = struct {
     x: ?f64 = null,
     y: ?f64 = null,
     z: ?f64 = null,
+
+    const Self = @This();
+
+    fn log(self: *const Self) void {
+        std.debug.print("[INFO] BOUNDARY\n", .{});
+        if (self.x) |x| {
+            std.debug.print("[INFO] x = {d}\n", .{x});
+        }
+        if (self.y) |y| {
+            std.debug.print("[INFO] y = {d}\n", .{y});
+        }
+        if (self.z) |z| {
+            std.debug.print("[INFO] z = {d}\n", .{z});
+        }
+    }
 };
 
 const Cfg = struct {
@@ -48,83 +142,28 @@ const Cfg = struct {
     output: ?OutputBlock = null,
     dynamics: ?DynamicsBlock = null,
     boundary: ?BoundaryBlock = null,
+    rng: ?Rng = null,
 
     const Self = @This();
 
     fn log(self: *const Self) void {
-        std.debug.print("[INFO] INPUT\n", .{});
-        std.debug.print("[INFO] crd = {s}\n", .{self.input.crd});
-        std.debug.print("[INFO] par = {s}\n", .{self.input.par});
-        std.debug.print("[INFO] top = {s}\n", .{self.input.top});
-        std.debug.print("[INFO]\n", .{});
-
+        self.input.log();
+        std.debug.print("[INFO] \n", .{});
         if (self.output) |output| {
-            std.debug.print("[INFO] OUTPUT\n", .{});
-            if (output.crd) |crd| {
-                std.debug.print("[INFO] crd = {s}\n", .{crd});
-            } else {
-                std.debug.print("[INFO] crd =\n", .{});
-            }
-            if (output.trj) |trj| {
-                std.debug.print("[INFO] trj = {s}\n", .{trj});
-            } else {
-                std.debug.print("[INFO] trj =\n", .{});
-            }
-            std.debug.print("[INFO]\n", .{});
+            output.log();
+            std.debug.print("[INFO] \n", .{});
         }
-
         if (self.dynamics) |dynamics| {
-            std.debug.print("[INFO] DYNAMICS\n", .{});
-            if (dynamics.dt) |dt| {
-                std.debug.print("[INFO] dt = {d}\n", .{dt});
-            } else {
-                std.debug.print("[INFO] dt =\n", .{});
-            }
-            if (dynamics.steps) |steps| {
-                std.debug.print("[INFO] steps = {d}\n", .{steps});
-            } else {
-                std.debug.print("[INFO] steps =\n", .{});
-            }
-            if (dynamics.ensemble) |ensemble| {
-                std.debug.print("[INFO] ensemble = {s}\n", .{@tagName(ensemble)});
-            } else {
-                std.debug.print("[INFO] ensemble =\n", .{});
-            }
-            if (dynamics.temperature) |temperature| {
-                std.debug.print("[INFO] temperature = {d}\n", .{temperature});
-            } else {
-                std.debug.print("[INFO] temperature =\n", .{});
-            }
-            if (dynamics.pressure) |pressure| {
-                std.debug.print("[INFO] pressure = {d}\n", .{pressure});
-            } else {
-                std.debug.print("[INFO] pressure =\n", .{});
-            }
-            if (dynamics.thermostat) |thermostat| {
-                std.debug.print("[INFO] thermostat = {s}\n", .{@tagName(thermostat)});
-            } else {
-                std.debug.print("[INFO] thermostat =\n", .{});
-            }
-            if (dynamics.barostat) |barostat| {
-                std.debug.print("[INFO] barostat = {s}\n", .{@tagName(barostat)});
-            } else {
-                std.debug.print("[INFO] barostat =\n", .{});
-            }
-            std.debug.print("[INFO]\n", .{});
+            dynamics.log();
+            std.debug.print("[INFO] \n", .{});
         }
-
+        if (self.rng) |rng| {
+            rng.log();
+            std.debug.print("[INFO] \n", .{});
+        }
         if (self.boundary) |boundary| {
-            std.debug.print("[INFO] BOUNDARY\n", .{});
-            if (boundary.x) |x| {
-                std.debug.print("[INFO] x = {d}\n", .{x});
-            }
-            if (boundary.y) |y| {
-                std.debug.print("[INFO] y = {d}\n", .{y});
-            }
-            if (boundary.z) |z| {
-                std.debug.print("[INFO] z = {d}\n", .{z});
-            }
-            std.debug.print("[INFO]\n", .{});
+            boundary.log();
+            std.debug.print("[INFO] \n", .{});
         }
     }
 };
@@ -157,8 +196,8 @@ const Class = struct {
 };
 
 const LJ = struct {
-    class1: []const u8,
-    class2: []const u8,
+    name1: []const u8,
+    name2: []const u8,
     epsilon: f64,
     sigma: f64,
 };
@@ -178,7 +217,7 @@ const Par = struct {
 
         std.debug.print("[INFO] LJ\n", .{});
         for (self.lj) |lj| {
-            std.debug.print("[INFO] class1 = {s}, class2 = {s}, epsilon = {d}, sigma = {d}\n", .{ lj.class1, lj.class2, lj.epsilon, lj.sigma });
+            std.debug.print("[INFO] name1 = {s}, name2 = {s}, epsilon = {d}, sigma = {d}\n", .{ lj.name1, lj.name2, lj.epsilon, lj.sigma });
         }
         std.debug.print("[INFO]\n", .{});
     }
@@ -186,7 +225,7 @@ const Par = struct {
 
 const Particle = struct {
     id: u64,
-    class: []const u8,
+    name: []const u8,
 };
 
 const Top = struct {
@@ -197,29 +236,33 @@ const Top = struct {
     fn log(self: *const Self) void {
         std.debug.print("[INFO] TOP\n", .{});
         for (self.particles) |particle| {
-            std.debug.print("[INFO] id = {d}, class = {s}\n", .{ particle.id, particle.class });
+            std.debug.print("[INFO] id = {d}, class = {s}\n", .{ particle.id, particle.name });
         }
         std.debug.print("[INFO]\n", .{});
     }
 };
 
 const System = struct {
+    n: u64,
     r: [][3]f64,
     v: [][3]f64,
     f: [][3]f64,
     m: []f64,
     q: []f64,
+    id: []u64,
     allocator: std.mem.Allocator,
 
     const Self = @This();
 
     fn init(allocator: std.mem.Allocator, n: u64) !Self {
         const new_system = Self{
+            .n = n,
             .r = try allocator.alloc([3]f64, n),
             .v = try allocator.alloc([3]f64, n),
             .f = try allocator.alloc([3]f64, n),
             .m = try allocator.alloc(f64, n),
             .q = try allocator.alloc(f64, n),
+            .id = try allocator.alloc(u64, n),
             .allocator = allocator,
         };
         return new_system;
@@ -231,6 +274,71 @@ const System = struct {
         self.allocator.free(self.f);
         self.allocator.free(self.m);
         self.allocator.free(self.q);
+        self.allocator.free(self.id);
+    }
+
+    fn setFromCrd(self: *Self, crd: Crd) void {
+        for (crd.coordinates, self.r, self.id) |coordinate, *r, *id| {
+            r.* = .{ coordinate.x, coordinate.y, coordinate.z };
+            id.* = coordinate.id;
+        }
+    }
+
+    fn setFromTopPar(self: *Self, top: Top, par: Par) !void {
+        for (self.id, self.m, self.q) |id, *m, *q| {
+            var particle: ?Particle = null;
+            var class: ?Class = null;
+
+            for (top.particles) |top_particle| {
+                if (top_particle.id == id) {
+                    particle = top_particle;
+                    break;
+                }
+            }
+
+            if (particle == null) return error.ParticleNotFound;
+
+            for (par.classes) |par_class| {
+                if (std.mem.eql(u8, par_class.name, particle.?.name)) {
+                    class = par_class;
+                    break;
+                }
+            }
+
+            if (class == null) return error.ClassNotFound;
+
+            m.* = class.?.mass;
+            q.* = class.?.charge;
+        }
+    }
+
+    fn setRandomVelocities(self: *Self, rng: std.Random) void {
+        for (self.v) |*v| {
+            v.* = .{
+                2 * rng.float(f64) - 1,
+                2 * rng.float(f64) - 1,
+                2 * rng.float(f64) - 1,
+            };
+        }
+    }
+
+    fn setRandomVelocitiesWithTemperature(self: *Self, rng: std.Random, temperature: f64) void {
+        self.setRandomVelocities(rng);
+        const target_temperature = temperature;
+        const current_temperature = self.measureTemperature();
+        const scaling_factor = std.math.sqrt(target_temperature / current_temperature);
+        for (self.v) |*v| {
+            v[0] *= scaling_factor;
+            v[1] *= scaling_factor;
+            v[2] *= scaling_factor;
+        }
+    }
+
+    fn measureTemperature(self: *const Self) f64 {
+        var sum: f64 = 0.0;
+        for (self.v, self.m) |v, m| sum += (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) * m / (3.0 * BOLTZMANN);
+        const temperature = sum / @as(f64, @floatFromInt(self.n));
+        return temperature;
     }
 };
 
@@ -361,7 +469,40 @@ pub fn main() !void {
     const top = top_topsed.value;
     top.log();
 
+    // Initialize rng seed
+    const seed = blk: {
+        if (cfg.rng) |rng| {
+            break :blk rng.seed;
+        } else {
+            var seed: u64 = undefined;
+            try std.posix.getrandom(std.mem.asBytes(&seed));
+            break :blk seed;
+        }
+    };
+    var prng = std.rand.DefaultPrng.init(seed);
+    const rng = prng.random();
+    std.debug.print("[INFO] SETUP RNG\n", .{});
+    std.debug.print("[INFO] seed = {d}\n", .{seed});
+    std.debug.print("[INFO] type = {s}\n", .{@typeName(@TypeOf(prng))});
+    std.debug.print("[INFO]\n", .{});
+
     // Initialize system
     var system = try System.init(allocator, crd.coordinates.len);
     defer system.deinit();
+    system.setFromCrd(crd);
+    try system.setFromTopPar(top, par);
+
+    // Initialize velocities
+    std.debug.print("[INFO] SETUP SYSTEM\n", .{});
+    if (cfg.dynamics) |dynamics| {
+        if (dynamics.temperature) |temperature| {
+            std.debug.print("[INFO] initializing velocities randomly at {d:.2}K\n", .{temperature});
+            system.setRandomVelocitiesWithTemperature(rng, temperature);
+        } else {
+            std.debug.print("[INFO] initializing velocities randomly \n", .{});
+            system.setRandomVelocities(rng);
+        }
+    }
+    std.debug.print("[INFO] initial temperature: {d:.2}K\n", .{system.measureTemperature()});
+    std.debug.print("[INFO]\n", .{});
 }
