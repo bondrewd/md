@@ -420,26 +420,27 @@ const System = struct {
             for (i + 1..self.n) |j| {
                 const ej = self.e[j];
                 const sj = self.s[j];
-                const e = @sqrt(ei + ej);
+                const e = @sqrt(ei * ej);
                 const s = (si + sj) / 2;
 
                 const rj = self.r[j];
                 var dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
                 self.boundary.wrap(&dr);
 
-                const c2 = s / (dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+                const s2 = s * s;
+                const c2 = s2 / (dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
                 const c4 = c2 * c2;
                 const c6 = c4 * c2;
                 const c8 = c4 * c4;
-                const force = 48 * e * c8 * (c6 - 0.5) / (s * s);
+                const force = 48 * e * c8 * (c6 - 0.5) / s2;
 
-                self.f[i][0] += force * dr[0];
-                self.f[i][1] += force * dr[1];
-                self.f[i][2] += force * dr[2];
+                self.f[i][0] -= force * dr[0];
+                self.f[i][1] -= force * dr[1];
+                self.f[i][2] -= force * dr[2];
 
-                self.f[j][0] -= force * dr[0];
-                self.f[j][1] -= force * dr[1];
-                self.f[j][2] -= force * dr[2];
+                self.f[j][0] += force * dr[0];
+                self.f[j][1] += force * dr[1];
+                self.f[j][2] += force * dr[2];
             }
         }
     }
@@ -453,14 +454,15 @@ const System = struct {
             for (i + 1..self.n) |j| {
                 const ej = self.e[j];
                 const sj = self.s[j];
-                const e = @sqrt(ei + ej);
+                const e = @sqrt(ei * ej);
                 const s = (si + sj) / 2;
 
                 const rj = self.r[j];
                 var dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
                 self.boundary.wrap(&dr);
 
-                const c2 = s / (dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
+                const s2 = s * s;
+                const c2 = s2 / (dr[0] * dr[0] + dr[1] * dr[1] + dr[2] * dr[2]);
                 const c4 = c2 * c2;
                 const c6 = c4 * c2;
                 const energy = 4 * e * c6 * (c6 - 1);
