@@ -663,8 +663,8 @@ pub fn main() !void {
     std.debug.print("[INFO]\n", .{});
 
     // Run dynamics
-    std.debug.print("[SIMU] STEP TEMPERATURE TOTAL POTENTIAL KINETIC LJ\n", .{});
     if (cfg.dynamics) |dynamics| {
+        std.debug.print("[SIMU] STEP TEMPERATURE TOTAL POTENTIAL KINETIC LJ\n", .{});
         const steps = dynamics.steps.?;
         const dt = dynamics.dt.?;
         for (1..steps + 1) |step| {
