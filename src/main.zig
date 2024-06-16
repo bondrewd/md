@@ -663,10 +663,11 @@ pub fn main() !void {
     std.debug.print("[INFO]\n", .{});
 
     // Run dynamics
+    std.debug.print("[SIMU] STEP TEMPERATURE TOTAL POTENTIAL KINETIC LJ\n", .{});
     if (cfg.dynamics) |dynamics| {
         const steps = dynamics.steps.?;
         const dt = dynamics.dt.?;
-        for (0..steps) |step| {
+        for (1..steps + 1) |step| {
             // Update coordinates and velocities
             for (system.r, system.v, system.f, system.m) |*r, *v, f, m| {
                 r[0] += v[0] * dt + f[0] * dt * dt / (2 * m);
@@ -691,13 +692,15 @@ pub fn main() !void {
             system.updateEnergyLJ();
             system.updateEnergyKinetic();
 
-            if ((step + 1) % 100 == 0) {
-                std.debug.print("[INFO] STEP {d}\n", .{step + 1});
-                std.debug.print("[INFO] temperature: {d:.2} K\n", .{system.measureTemperature()});
-                std.debug.print("[INFO] energy lj: {d:.2} kcal/mol\n", .{system.energy.lj});
-                std.debug.print("[INFO] energy kinetic: {d:.2} kcal/mol\n", .{system.energy.kinetic});
-                std.debug.print("[INFO] initial energy total: {d:.2} kcal/mol\n", .{system.energy.lj + system.energy.kinetic});
-                std.debug.print("[INFO]\n", .{});
+            if (step % 1000 == 0) {
+                std.debug.print("[SIMU] {d} {d:>.2} {d:>.4} {d:>.4} {d:>.4} {d:>.4}\n", .{
+                    step,
+                    system.measureTemperature(),
+                    system.energy.lj + system.energy.kinetic,
+                    system.energy.lj,
+                    system.energy.kinetic,
+                    system.energy.lj,
+                });
             }
         }
     }
