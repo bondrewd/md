@@ -514,6 +514,40 @@ const System = struct {
     }
 };
 
+const XYZFile = struct {
+    file: ?std.fs.File = null,
+    writer: ?std.fs.File.Writer = null,
+
+    const Self = @This();
+
+    fn init(path: ?[]const u8) Self {
+        var xyz_file = Self{};
+        if (path) |xyz_file_path| {
+            xyz_file.file = std.fs.cwd().createFile(xyz_file_path, .{ .truncate = true }) catch {
+                std.debug.print("[ERROR] Unable to open file '{s}'\n", .{xyz_file_path});
+                std.process.exit(0);
+            };
+            xyz_file.writer = xyz_file.file.?.writer();
+        }
+        return xyz_file;
+    }
+
+    fn deinit(self: *const Self) void {
+        if (self.file) |file| {
+            file.close();
+        }
+    }
+
+    fn write_frame(self: *const Self, system: *const System) !void {
+        if (self.writer) |writer| {
+            try writer.print("{d}\n\n", .{system.n});
+            for (system.r) |r| {
+                try writer.print("Ar {d:8.3} {d:8.3} {d:8.3}\n", .{ r[0], r[1], r[2] });
+            }
+        }
+    }
+};
+
 pub fn main() !void {
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
@@ -694,8 +728,25 @@ pub fn main() !void {
 
     // Run dynamics
     if (cfg.dynamics) |dynamics| {
+        // Open output files
+        var xyz_file_path: ?[]u8 = null;
+        if (cfg.output) |output| {
+            if (output.trj) |trj| {
+                if (std.fs.path.dirname(cfg_file_path)) |dir| {
+                    xyz_file_path = try std.fs.path.join(allocator, &[_][]const u8{ dir, trj });
+                } else {
+                    xyz_file_path = try std.fs.path.join(allocator, &[_][]const u8{ ".", trj });
+                }
+            }
+        }
+        defer if (xyz_file_path) |path| allocator.free(path);
+        const xyz_file = XYZFile.init(xyz_file_path);
+        defer xyz_file.deinit();
+        try xyz_file.write_frame(&system);
+        // Log header and first step
         system.log_dynamics_header();
         system.log_dynamics(0);
+        // Initialize variables
         const steps = dynamics.steps.?;
         const dt = dynamics.dt.?;
         for (1..steps + 1) |step| {
@@ -724,7 +775,8 @@ pub fn main() !void {
             system.updateEnergyLJ();
             system.updateEnergyKinetic();
 
-            if (step % 1000 == 0) system.log_dynamics(step);
+            if (step % 100 == 0) system.log_dynamics(step);
+            if (step % 100 == 0) try xyz_file.write_frame(&system);
         }
     }
 }
