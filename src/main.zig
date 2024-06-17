@@ -404,6 +404,11 @@ const System = struct {
         }
     }
 
+    fn zeroEnergy(self: *Self) void {
+        self.energy.kinetic = 0.0;
+        self.energy.lj = 0.0;
+    }
+
     fn zeroForce(self: *Self) void {
         for (self.f) |*f| f.* = .{ 0, 0, 0 };
     }
@@ -446,7 +451,6 @@ const System = struct {
     }
 
     fn updateEnergyLJ(self: *Self) void {
-        self.energy.lj = 0.0;
         for (0..self.n - 1) |i| {
             const ri = self.r[i];
             const ei = self.e[i];
@@ -473,17 +477,40 @@ const System = struct {
     }
 
     fn updateEnergyKinetic(self: *Self) void {
-        self.energy.kinetic = 0.0;
         for (self.v, self.m) |v, m| {
             self.energy.kinetic += (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) * m / 2;
         }
+        self.energy.kinetic /= 418.4;
     }
 
     fn measureTemperature(self: *const Self) f64 {
         var sum: f64 = 0.0;
         for (self.v, self.m) |v, m| sum += (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) * m / (3.0 * BOLTZMANN);
+        sum /= 418.4;
         const temperature = sum / @as(f64, @floatFromInt(self.n));
         return temperature;
+    }
+
+    fn log_dynamics_header(_: *Self) void {
+        std.debug.print("[SIMU] {s:>10} {s:>10} {s:>10} {s:>10} {s:>10} {s:>10}\n", .{
+            "STEP",
+            "TEMP",
+            "TOTAL",
+            "POTENTIAL",
+            "KINETIC",
+            "LJ",
+        });
+    }
+
+    fn log_dynamics(self: *Self, step: usize) void {
+        std.debug.print("[SIMU] {d:>10} {d:>10.2} {d:>10.4} {d:>10.4} {d:>10.4} {d:>10.4}\n", .{
+            step,
+            self.measureTemperature(),
+            self.energy.lj + self.energy.kinetic,
+            self.energy.lj,
+            self.energy.kinetic,
+            self.energy.lj,
+        });
     }
 };
 
@@ -653,6 +680,7 @@ pub fn main() !void {
     system.updateForceLJ();
 
     // Initialize energy
+    system.zeroEnergy();
     system.updateEnergyLJ();
     system.updateEnergyKinetic();
 
@@ -666,18 +694,19 @@ pub fn main() !void {
 
     // Run dynamics
     if (cfg.dynamics) |dynamics| {
-        std.debug.print("[SIMU] STEP TEMPERATURE TOTAL POTENTIAL KINETIC LJ\n", .{});
+        system.log_dynamics_header();
+        system.log_dynamics(0);
         const steps = dynamics.steps.?;
         const dt = dynamics.dt.?;
         for (1..steps + 1) |step| {
             // Update coordinates and velocities
             for (system.r, system.v, system.f, system.m) |*r, *v, f, m| {
-                r[0] += v[0] * dt + f[0] * dt * dt / (2 * m);
-                r[1] += v[1] * dt + f[1] * dt * dt / (2 * m);
-                r[2] += v[2] * dt + f[2] * dt * dt / (2 * m);
-                v[0] += f[0] * dt / (2 * m);
-                v[1] += f[1] * dt / (2 * m);
-                v[2] += f[2] * dt / (2 * m);
+                r[0] += v[0] * dt + 418.4 * f[0] * dt * dt / (2 * m);
+                r[1] += v[1] * dt + 418.4 * f[1] * dt * dt / (2 * m);
+                r[2] += v[2] * dt + 418.4 * f[2] * dt * dt / (2 * m);
+                v[0] += 418.4 * f[0] * dt / (2 * m);
+                v[1] += 418.4 * f[1] * dt / (2 * m);
+                v[2] += 418.4 * f[2] * dt / (2 * m);
             }
             // Wrap coordinates
             system.wrapCoordinates();
@@ -686,24 +715,16 @@ pub fn main() !void {
             system.updateForceLJ();
             // Update velocities
             for (system.v, system.f, system.m) |*v, f, m| {
-                v[0] += f[0] * dt / (2 * m);
-                v[1] += f[1] * dt / (2 * m);
-                v[2] += f[2] * dt / (2 * m);
+                v[0] += 418.4 * f[0] * dt / (2 * m);
+                v[1] += 418.4 * f[1] * dt / (2 * m);
+                v[2] += 418.4 * f[2] * dt / (2 * m);
             }
             // Update energy
+            system.zeroEnergy();
             system.updateEnergyLJ();
             system.updateEnergyKinetic();
 
-            if (step % 1000 == 0) {
-                std.debug.print("[SIMU] {d} {d:>.2} {d:>.4} {d:>.4} {d:>.4} {d:>.4}\n", .{
-                    step,
-                    system.measureTemperature(),
-                    system.energy.lj + system.energy.kinetic,
-                    system.energy.lj,
-                    system.energy.kinetic,
-                    system.energy.lj,
-                });
-            }
+            if (step % 1000 == 0) system.log_dynamics(step);
         }
     }
 }
