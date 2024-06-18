@@ -9,31 +9,31 @@ const InputBlock = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self) void {
-        std.debug.print("[INFO] INPUT\n", .{});
-        std.debug.print("[INFO] crd = {s}\n", .{self.crd});
-        std.debug.print("[INFO] par = {s}\n", .{self.par});
-        std.debug.print("[INFO] top = {s}\n", .{self.top});
+    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try writer.print("[INFO] INPUT\n", .{});
+        try writer.print("[INFO] crd = {s}\n", .{self.crd});
+        try writer.print("[INFO] par = {s}\n", .{self.par});
+        try writer.print("[INFO] top = {s}\n", .{self.top});
     }
 };
 
 const OutputBlock = struct {
     crd: ?[]u8 = null,
-    trj: ?[]u8 = null,
+    xyz: ?[]u8 = null,
 
     const Self = @This();
 
-    fn log(self: *const Self) void {
-        std.debug.print("[INFO] OUTPUT\n", .{});
+    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try writer.print("[INFO] OUTPUT\n", .{});
         if (self.crd) |crd| {
-            std.debug.print("[INFO] crd = {s}\n", .{crd});
+            try writer.print("[INFO] crd = {s}\n", .{crd});
         } else {
-            std.debug.print("[INFO] crd =\n", .{});
+            try writer.print("[INFO] crd =\n", .{});
         }
-        if (self.trj) |trj| {
-            std.debug.print("[INFO] trj = {s}\n", .{trj});
+        if (self.xyz) |xyz| {
+            try writer.print("[INFO] xyz = {s}\n", .{xyz});
         } else {
-            std.debug.print("[INFO] trj =\n", .{});
+            try writer.print("[INFO] xyz =\n", .{});
         }
     }
 };
@@ -65,42 +65,42 @@ const DynamicsBlock = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self) void {
-        std.debug.print("[INFO] DYNAMICS\n", .{});
+    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try writer.print("[INFO] DYNAMICS\n", .{});
         if (self.dt) |dt| {
-            std.debug.print("[INFO] dt = {d}\n", .{dt});
+            try writer.print("[INFO] dt = {d}\n", .{dt});
         } else {
-            std.debug.print("[INFO] dt =\n", .{});
+            try writer.print("[INFO] dt =\n", .{});
         }
         if (self.steps) |steps| {
-            std.debug.print("[INFO] steps = {d}\n", .{steps});
+            try writer.print("[INFO] steps = {d}\n", .{steps});
         } else {
-            std.debug.print("[INFO] steps =\n", .{});
+            try writer.print("[INFO] steps =\n", .{});
         }
         if (self.ensemble) |ensemble| {
-            std.debug.print("[INFO] ensemble = {s}\n", .{@tagName(ensemble)});
+            try writer.print("[INFO] ensemble = {s}\n", .{@tagName(ensemble)});
         } else {
-            std.debug.print("[INFO] ensemble =\n", .{});
+            try writer.print("[INFO] ensemble =\n", .{});
         }
         if (self.temperature) |temperature| {
-            std.debug.print("[INFO] temperature = {d}\n", .{temperature});
+            try writer.print("[INFO] temperature = {d}\n", .{temperature});
         } else {
-            std.debug.print("[INFO] temperature =\n", .{});
+            try writer.print("[INFO] temperature =\n", .{});
         }
         if (self.pressure) |pressure| {
-            std.debug.print("[INFO] pressure = {d}\n", .{pressure});
+            try writer.print("[INFO] pressure = {d}\n", .{pressure});
         } else {
-            std.debug.print("[INFO] pressure =\n", .{});
+            try writer.print("[INFO] pressure =\n", .{});
         }
         if (self.thermostat) |thermostat| {
-            std.debug.print("[INFO] thermostat = {s}\n", .{@tagName(thermostat)});
+            try writer.print("[INFO] thermostat = {s}\n", .{@tagName(thermostat)});
         } else {
-            std.debug.print("[INFO] thermostat =\n", .{});
+            try writer.print("[INFO] thermostat =\n", .{});
         }
         if (self.barostat) |barostat| {
-            std.debug.print("[INFO] barostat = {s}\n", .{@tagName(barostat)});
+            try writer.print("[INFO] barostat = {s}\n", .{@tagName(barostat)});
         } else {
-            std.debug.print("[INFO] barostat =\n", .{});
+            try writer.print("[INFO] barostat =\n", .{});
         }
     }
 };
@@ -110,9 +110,9 @@ const Rng = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self) void {
-        std.debug.print("[INFO] RNG\n", .{});
-        std.debug.print("[INFO] seed = {d}\n", .{self.seed});
+    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try writer.print("[INFO] RNG\n", .{});
+        try writer.print("[INFO] seed = {d}\n", .{self.seed});
     }
 };
 
@@ -123,16 +123,16 @@ const BoundaryBlock = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self) void {
-        std.debug.print("[INFO] BOUNDARY\n", .{});
+    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try writer.print("[INFO] BOUNDARY\n", .{});
         if (self.x) |x| {
-            std.debug.print("[INFO] x = {d}\n", .{x});
+            try writer.print("[INFO] x = {d}\n", .{x});
         }
         if (self.y) |y| {
-            std.debug.print("[INFO] y = {d}\n", .{y});
+            try writer.print("[INFO] y = {d}\n", .{y});
         }
         if (self.z) |z| {
-            std.debug.print("[INFO] z = {d}\n", .{z});
+            try writer.print("[INFO] z = {d}\n", .{z});
         }
     }
 };
@@ -146,24 +146,24 @@ const Cfg = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self) void {
-        self.input.log();
-        std.debug.print("[INFO] \n", .{});
+    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try self.input.log(writer);
+        try writer.print("[INFO] \n", .{});
         if (self.output) |output| {
-            output.log();
-            std.debug.print("[INFO] \n", .{});
+            try output.log(writer);
+            try writer.print("[INFO] \n", .{});
         }
         if (self.dynamics) |dynamics| {
-            dynamics.log();
-            std.debug.print("[INFO] \n", .{});
+            try dynamics.log(writer);
+            try writer.print("[INFO] \n", .{});
         }
         if (self.rng) |rng| {
-            rng.log();
-            std.debug.print("[INFO] \n", .{});
+            try rng.log(writer);
+            try writer.print("[INFO] \n", .{});
         }
         if (self.boundary) |boundary| {
-            boundary.log();
-            std.debug.print("[INFO] \n", .{});
+            try boundary.log(writer);
+            try writer.print("[INFO] \n", .{});
         }
     }
 };
@@ -180,12 +180,12 @@ const Crd = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self) void {
-        std.debug.print("[INFO] CRD\n", .{});
+    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try writer.print("[INFO] CRD\n", .{});
         for (self.coordinates) |coordinate| {
-            std.debug.print("[INFO] id = {d}, x = {d}, y = {d}, z = {d}\n", .{ coordinate.id, coordinate.x, coordinate.y, coordinate.z });
+            try writer.print("[INFO] id = {d}, x = {d}, y = {d}, z = {d}\n", .{ coordinate.id, coordinate.x, coordinate.y, coordinate.z });
         }
-        std.debug.print("[INFO]\n", .{});
+        try writer.print("[INFO]\n", .{});
     }
 };
 
@@ -207,18 +207,18 @@ const Par = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self) void {
-        std.debug.print("[INFO] CLASSES\n", .{});
+    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try writer.print("[INFO] CLASSES\n", .{});
         for (self.classes) |class| {
-            std.debug.print("[INFO] name = {s}, mass = {d}, charge = {d}\n", .{ class.name, class.mass, class.charge });
+            try writer.print("[INFO] name = {s}, mass = {d}, charge = {d}\n", .{ class.name, class.mass, class.charge });
         }
-        std.debug.print("[INFO]\n", .{});
+        try writer.print("[INFO]\n", .{});
 
-        std.debug.print("[INFO] LJ\n", .{});
+        try writer.print("[INFO] LJ\n", .{});
         for (self.lj) |lj| {
-            std.debug.print("[INFO] name = {s}, epsilon = {d}, sigma = {d}\n", .{ lj.name, lj.epsilon, lj.sigma });
+            try writer.print("[INFO] name = {s}, epsilon = {d}, sigma = {d}\n", .{ lj.name, lj.epsilon, lj.sigma });
         }
-        std.debug.print("[INFO]\n", .{});
+        try writer.print("[INFO]\n", .{});
     }
 };
 
@@ -232,12 +232,12 @@ const Top = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self) void {
-        std.debug.print("[INFO] TOP\n", .{});
+    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try writer.print("[INFO] TOP\n", .{});
         for (self.particles) |particle| {
-            std.debug.print("[INFO] id = {d}, class = {s}\n", .{ particle.id, particle.name });
+            try writer.print("[INFO] id = {d}, class = {s}\n", .{ particle.id, particle.name });
         }
-        std.debug.print("[INFO]\n", .{});
+        try writer.print("[INFO]\n", .{});
     }
 };
 
@@ -491,8 +491,8 @@ const System = struct {
         return temperature;
     }
 
-    fn log_dynamics_header(_: *Self) void {
-        std.debug.print("[SIMU] {s:>10} {s:>10} {s:>10} {s:>10} {s:>10} {s:>10}\n", .{
+    fn log_dynamics_header(_: *Self, writer: std.fs.File.Writer) !void {
+        try writer.print("[SIMU] {s:>10} {s:>10} {s:>10} {s:>10} {s:>10} {s:>10}\n", .{
             "STEP",
             "TEMP",
             "TOTAL",
@@ -502,8 +502,8 @@ const System = struct {
         });
     }
 
-    fn log_dynamics(self: *Self, step: usize) void {
-        std.debug.print("[SIMU] {d:>10} {d:>10.2} {d:>10.4} {d:>10.4} {d:>10.4} {d:>10.4}\n", .{
+    fn log_dynamics(self: *Self, writer: std.fs.File.Writer, step: usize) !void {
+        try writer.print("[SIMU] {d:>10} {d:>10.2} {d:>10.4} {d:>10.4} {d:>10.4} {d:>10.4}\n", .{
             step,
             self.measureTemperature(),
             self.energy.lj + self.energy.kinetic,
@@ -549,6 +549,9 @@ const XYZFile = struct {
 };
 
 pub fn main() !void {
+    const stdout = std.io.getStdOut().writer();
+    const stderr = std.io.getStdErr().writer();
+
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
     defer {
         const deinit_status = gpa.deinit();
@@ -586,7 +589,7 @@ pub fn main() !void {
     defer cfg_parsed.deinit();
 
     const cfg = cfg_parsed.value;
-    cfg.log();
+    try cfg.log(stderr);
 
     // Read coordinate file
     var crd_file_path: []u8 = undefined;
@@ -615,7 +618,7 @@ pub fn main() !void {
     defer crd_parsed.deinit();
 
     const crd = crd_parsed.value;
-    crd.log();
+    try crd.log(stderr);
 
     // Read parameter file
     var par_file_path: []u8 = undefined;
@@ -644,7 +647,7 @@ pub fn main() !void {
     defer par_parsed.deinit();
 
     const par = par_parsed.value;
-    par.log();
+    try par.log(stderr);
 
     // Read parameter file
     var top_file_path: []u8 = undefined;
@@ -673,7 +676,7 @@ pub fn main() !void {
     defer top_topsed.deinit();
 
     const top = top_topsed.value;
-    top.log();
+    try top.log(stderr);
 
     // Initialize rng seed
     const seed = blk: {
@@ -731,11 +734,11 @@ pub fn main() !void {
         // Open output files
         var xyz_file_path: ?[]u8 = null;
         if (cfg.output) |output| {
-            if (output.trj) |trj| {
+            if (output.xyz) |xyz| {
                 if (std.fs.path.dirname(cfg_file_path)) |dir| {
-                    xyz_file_path = try std.fs.path.join(allocator, &[_][]const u8{ dir, trj });
+                    xyz_file_path = try std.fs.path.join(allocator, &[_][]const u8{ dir, xyz });
                 } else {
-                    xyz_file_path = try std.fs.path.join(allocator, &[_][]const u8{ ".", trj });
+                    xyz_file_path = try std.fs.path.join(allocator, &[_][]const u8{ ".", xyz });
                 }
             }
         }
@@ -744,8 +747,8 @@ pub fn main() !void {
         defer xyz_file.deinit();
         try xyz_file.write_frame(&system);
         // Log header and first step
-        system.log_dynamics_header();
-        system.log_dynamics(0);
+        try system.log_dynamics_header(stdout);
+        try system.log_dynamics(stdout, 0);
         // Initialize variables
         const steps = dynamics.steps.?;
         const dt = dynamics.dt.?;
@@ -775,7 +778,7 @@ pub fn main() !void {
             system.updateEnergyLJ();
             system.updateEnergyKinetic();
 
-            if (step % 100 == 0) system.log_dynamics(step);
+            if (step % 100 == 0) try system.log_dynamics(stdout, step);
             if (step % 100 == 0) try xyz_file.write_frame(&system);
         }
     }
