@@ -55,8 +55,8 @@ const BarostatKind = enum {
 };
 
 const DynamicsBlock = struct {
-    dt: ?f64 = null,
-    steps: ?u64 = null,
+    dt: f64,
+    steps: u64,
     ensemble: ?EnsembleKind = null,
     temperature: ?f64 = null,
     pressure: ?f64 = null,
@@ -67,16 +67,8 @@ const DynamicsBlock = struct {
 
     fn log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] DYNAMICS\n", .{});
-        if (self.dt) |dt| {
-            try writer.print("[INFO] dt = {d}\n", .{dt});
-        } else {
-            try writer.print("[INFO] dt =\n", .{});
-        }
-        if (self.steps) |steps| {
-            try writer.print("[INFO] steps = {d}\n", .{steps});
-        } else {
-            try writer.print("[INFO] steps =\n", .{});
-        }
+        try writer.print("[INFO] dt = {d}\n", .{self.dt});
+        try writer.print("[INFO] steps = {d}\n", .{self.steps});
         if (self.ensemble) |ensemble| {
             try writer.print("[INFO] ensemble = {s}\n", .{@tagName(ensemble)});
         } else {
@@ -246,25 +238,27 @@ const Energy = struct {
     lj: f64,
 };
 
+const Side = struct {
+    full: f64,
+    half: f64,
+};
+
 const Boundary = struct {
-    x: ?f64 = null,
-    y: ?f64 = null,
-    z: ?f64 = null,
-    xh: ?f64 = null,
-    yh: ?f64 = null,
-    zh: ?f64 = null,
+    x: ?Side = null,
+    y: ?Side = null,
+    z: ?Side = null,
 
     const Self = @This();
 
     fn wrap(self: *Self, r: *[3]f64) void {
-        if (self.xh) |xh| {
-            if (r[0] > xh or r[0] < -xh) r[0] -= self.x.? * @round(r[0] / self.x.?);
+        if (self.x) |x| {
+            if (r[0] > x.half or r[0] < -x.half) r[0] -= x.full * @round(r[0] / x.full);
         }
-        if (self.y) |yh| {
-            if (r[0] > yh or r[0] < -yh) r[0] -= self.y.? * @round(r[0] / self.y.?);
+        if (self.y) |y| {
+            if (r[0] > y.half or r[0] < -y.half) r[0] -= y.full * @round(r[0] / y.full);
         }
-        if (self.z) |zh| {
-            if (r[0] > zh or r[0] < -zh) r[0] -= self.z.? * @round(r[0] / self.z.?);
+        if (self.z) |z| {
+            if (r[0] > z.half or r[0] < -z.half) r[0] -= z.full * @round(r[0] / z.full);
         }
     }
 };
@@ -316,14 +310,10 @@ const System = struct {
 
     fn setFromCfg(self: *Self, cfg: Cfg) void {
         if (cfg.boundary) |boundary| {
-            if (boundary.x) |x| self.boundary.x = x;
-            if (boundary.y) |y| self.boundary.y = y;
-            if (boundary.z) |z| self.boundary.z = z;
+            if (boundary.x) |x| self.boundary.x = .{ .full = x, .half = x / 2 };
+            if (boundary.y) |y| self.boundary.y = .{ .full = y, .half = y / 2 };
+            if (boundary.z) |z| self.boundary.z = .{ .full = z, .half = z / 2 };
         }
-
-        if (self.boundary.x) |x| self.boundary.xh = x / 2;
-        if (self.boundary.y) |y| self.boundary.yh = y / 2;
-        if (self.boundary.z) |z| self.boundary.zh = z / 2;
     }
 
     fn setFromCrd(self: *Self, crd: Crd) void {
@@ -750,8 +740,8 @@ pub fn main() !void {
         try system.log_dynamics_header(stdout);
         try system.log_dynamics(stdout, 0);
         // Initialize variables
-        const steps = dynamics.steps.?;
-        const dt = dynamics.dt.?;
+        const steps = dynamics.steps;
+        const dt = dynamics.dt;
         for (1..steps + 1) |step| {
             // Update coordinates and velocities
             for (system.r, system.v, system.f, system.m) |*r, *v, f, m| {
