@@ -255,10 +255,10 @@ const Boundary = struct {
             if (r[0] > x.half or r[0] < -x.half) r[0] -= x.full * @round(r[0] / x.full);
         }
         if (self.y) |y| {
-            if (r[0] > y.half or r[0] < -y.half) r[0] -= y.full * @round(r[0] / y.full);
+            if (r[1] > y.half or r[1] < -y.half) r[1] -= y.full * @round(r[1] / y.full);
         }
         if (self.z) |z| {
-            if (r[0] > z.half or r[0] < -z.half) r[0] -= z.full * @round(r[0] / z.full);
+            if (r[2] > z.half or r[2] < -z.half) r[2] -= z.full * @round(r[2] / z.full);
         }
     }
 };
