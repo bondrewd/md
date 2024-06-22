@@ -9,7 +9,7 @@ const InputBlock = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+    fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] INPUT\n", .{});
         try writer.print("[INFO] crd = {s}\n", .{self.crd});
         try writer.print("[INFO] par = {s}\n", .{self.par});
@@ -20,10 +20,12 @@ const InputBlock = struct {
 const OutputBlock = struct {
     crd: ?[]u8 = null,
     xyz: ?[]u8 = null,
+    log: ?[]u8 = null,
+    csv: ?[]u8 = null,
 
     const Self = @This();
 
-    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+    fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] OUTPUT\n", .{});
         if (self.crd) |crd| {
             try writer.print("[INFO] crd = {s}\n", .{crd});
@@ -34,6 +36,16 @@ const OutputBlock = struct {
             try writer.print("[INFO] xyz = {s}\n", .{xyz});
         } else {
             try writer.print("[INFO] xyz =\n", .{});
+        }
+        if (self.log) |log| {
+            try writer.print("[INFO] log = {s}\n", .{log});
+        } else {
+            try writer.print("[INFO] log =\n", .{});
+        }
+        if (self.csv) |csv| {
+            try writer.print("[INFO] csv = {s}\n", .{csv});
+        } else {
+            try writer.print("[INFO] csv =\n", .{});
         }
     }
 };
@@ -65,7 +77,7 @@ const DynamicsBlock = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+    fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] DYNAMICS\n", .{});
         try writer.print("[INFO] dt = {d}\n", .{self.dt});
         try writer.print("[INFO] steps = {d}\n", .{self.steps});
@@ -102,7 +114,7 @@ const Rng = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+    fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] RNG\n", .{});
         try writer.print("[INFO] seed = {d}\n", .{self.seed});
     }
@@ -115,7 +127,7 @@ const BoundaryBlock = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+    fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] BOUNDARY\n", .{});
         if (self.x) |x| {
             try writer.print("[INFO] x = {d}\n", .{x});
@@ -138,23 +150,23 @@ const Cfg = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
-        try self.input.log(writer);
+    fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
+        try self.input.write_log(writer);
         try writer.print("[INFO] \n", .{});
         if (self.output) |output| {
-            try output.log(writer);
+            try output.write_log(writer);
             try writer.print("[INFO] \n", .{});
         }
         if (self.dynamics) |dynamics| {
-            try dynamics.log(writer);
+            try dynamics.write_log(writer);
             try writer.print("[INFO] \n", .{});
         }
         if (self.rng) |rng| {
-            try rng.log(writer);
+            try rng.write_log(writer);
             try writer.print("[INFO] \n", .{});
         }
         if (self.boundary) |boundary| {
-            try boundary.log(writer);
+            try boundary.write_log(writer);
             try writer.print("[INFO] \n", .{});
         }
     }
@@ -172,11 +184,9 @@ const Crd = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+    fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] CRD\n", .{});
-        for (self.coordinates) |coordinate| {
-            try writer.print("[INFO] id = {d}, x = {d}, y = {d}, z = {d}\n", .{ coordinate.id, coordinate.x, coordinate.y, coordinate.z });
-        }
+        try writer.print("[INFO] Number of particles: {d}\n", .{self.coordinates.len});
         try writer.print("[INFO]\n", .{});
     }
 };
@@ -199,7 +209,7 @@ const Par = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+    fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] CLASSES\n", .{});
         for (self.classes) |class| {
             try writer.print("[INFO] name = {s}, mass = {d}, charge = {d}\n", .{ class.name, class.mass, class.charge });
@@ -224,11 +234,9 @@ const Top = struct {
 
     const Self = @This();
 
-    fn log(self: *const Self, writer: std.fs.File.Writer) !void {
+    fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] TOP\n", .{});
-        for (self.particles) |particle| {
-            try writer.print("[INFO] id = {d}, class = {s}\n", .{ particle.id, particle.name });
-        }
+        try writer.print("[INFO] Number of particles: {d}\n", .{self.particles.len});
         try writer.print("[INFO]\n", .{});
     }
 };
@@ -480,28 +488,6 @@ const System = struct {
         const temperature = sum / @as(f64, @floatFromInt(self.n));
         return temperature;
     }
-
-    fn log_dynamics_header(_: *Self, writer: std.fs.File.Writer) !void {
-        try writer.print("[SIMU] {s:>10} {s:>10} {s:>10} {s:>10} {s:>10} {s:>10}\n", .{
-            "STEP",
-            "TEMP",
-            "TOTAL",
-            "POTENTIAL",
-            "KINETIC",
-            "LJ",
-        });
-    }
-
-    fn log_dynamics(self: *Self, writer: std.fs.File.Writer, step: usize) !void {
-        try writer.print("[SIMU] {d:>10} {d:>10.2} {d:>10.4} {d:>10.4} {d:>10.4} {d:>10.4}\n", .{
-            step,
-            self.measureTemperature(),
-            self.energy.lj + self.energy.kinetic,
-            self.energy.lj,
-            self.energy.kinetic,
-            self.energy.lj,
-        });
-    }
 };
 
 const XYZFile = struct {
@@ -538,8 +524,58 @@ const XYZFile = struct {
     }
 };
 
+const CSVFile = struct {
+    file: ?std.fs.File = null,
+    writer: ?std.fs.File.Writer = null,
+
+    const Self = @This();
+
+    fn init(path: ?[]const u8) Self {
+        var csv_file = Self{};
+        if (path) |csv_file_path| {
+            csv_file.file = std.fs.cwd().createFile(csv_file_path, .{ .truncate = true }) catch {
+                std.debug.print("[ERROR] Unable to open file '{s}'\n", .{csv_file_path});
+                std.process.exit(0);
+            };
+            csv_file.writer = csv_file.file.?.writer();
+        }
+        return csv_file;
+    }
+
+    fn deinit(self: *const Self) void {
+        if (self.file) |file| {
+            file.close();
+        }
+    }
+
+    fn write_header(self: *const Self) !void {
+        if (self.writer) |writer| {
+            try writer.print("{s},{s},{s},{s},{s},{s}\n", .{
+                "STEP",
+                "TEMP",
+                "TOTAL",
+                "POTENTIAL",
+                "KINETIC",
+                "LJ",
+            });
+        }
+    }
+
+    fn write_state(self: *const Self, system: *const System, step: usize) !void {
+        if (self.writer) |writer| {
+            try writer.print("{d},{d:.2},{d:.4},{d:.4},{d:.4},{d:.4}\n", .{
+                step,
+                system.measureTemperature(),
+                system.energy.lj + system.energy.kinetic,
+                system.energy.lj,
+                system.energy.kinetic,
+                system.energy.lj,
+            });
+        }
+    }
+};
+
 pub fn main() !void {
-    const stdout = std.io.getStdOut().writer();
     const stderr = std.io.getStdErr().writer();
 
     var gpa = std.heap.GeneralPurposeAllocator(.{}){};
@@ -579,7 +615,7 @@ pub fn main() !void {
     defer cfg_parsed.deinit();
 
     const cfg = cfg_parsed.value;
-    try cfg.log(stderr);
+    try cfg.write_log(stderr);
 
     // Read coordinate file
     var crd_file_path: []u8 = undefined;
@@ -608,7 +644,7 @@ pub fn main() !void {
     defer crd_parsed.deinit();
 
     const crd = crd_parsed.value;
-    try crd.log(stderr);
+    try crd.write_log(stderr);
 
     // Read parameter file
     var par_file_path: []u8 = undefined;
@@ -637,7 +673,7 @@ pub fn main() !void {
     defer par_parsed.deinit();
 
     const par = par_parsed.value;
-    try par.log(stderr);
+    try par.write_log(stderr);
 
     // Read parameter file
     var top_file_path: []u8 = undefined;
@@ -666,7 +702,7 @@ pub fn main() !void {
     defer top_topsed.deinit();
 
     const top = top_topsed.value;
-    try top.log(stderr);
+    try top.write_log(stderr);
 
     // Initialize rng seed
     const seed = blk: {
@@ -721,7 +757,7 @@ pub fn main() !void {
 
     // Run dynamics
     if (cfg.dynamics) |dynamics| {
-        // Open output files
+        // Open XYZ file
         var xyz_file_path: ?[]u8 = null;
         if (cfg.output) |output| {
             if (output.xyz) |xyz| {
@@ -735,10 +771,27 @@ pub fn main() !void {
         defer if (xyz_file_path) |path| allocator.free(path);
         const xyz_file = XYZFile.init(xyz_file_path);
         defer xyz_file.deinit();
+
+        // Open CSV file
+        var csv_file_path: ?[]u8 = null;
+        if (cfg.output) |output| {
+            if (output.csv) |csv| {
+                if (std.fs.path.dirname(cfg_file_path)) |dir| {
+                    csv_file_path = try std.fs.path.join(allocator, &[_][]const u8{ dir, csv });
+                } else {
+                    csv_file_path = try std.fs.path.join(allocator, &[_][]const u8{ ".", csv });
+                }
+            }
+        }
+        defer if (csv_file_path) |path| allocator.free(path);
+        const csv_file = CSVFile.init(csv_file_path);
+        defer csv_file.deinit();
+
+        // Initial output
+        try csv_file.write_header();
+        try csv_file.write_state(&system, 0);
         try xyz_file.write_frame(&system);
-        // Log header and first step
-        try system.log_dynamics_header(stdout);
-        try system.log_dynamics(stdout, 0);
+
         // Initialize variables
         const steps = dynamics.steps;
         const dt = dynamics.dt;
@@ -768,7 +821,7 @@ pub fn main() !void {
             system.updateEnergyLJ();
             system.updateEnergyKinetic();
 
-            if (step % 100 == 0) try system.log_dynamics(stdout, step);
+            if (step % 100 == 0) try csv_file.write_state(&system, step);
             if (step % 100 == 0) try xyz_file.write_frame(&system);
         }
     }
