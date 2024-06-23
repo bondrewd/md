@@ -1,5 +1,6 @@
 const std = @import("std");
 const config = @import("config");
+const builtin = @import("builtin");
 
 const F = switch (config.precision) {
     .Single => f32,
@@ -192,7 +193,7 @@ const Crd = struct {
 
     fn write_log(self: *const Self, writer: std.fs.File.Writer) !void {
         try writer.print("[INFO] CRD\n", .{});
-        try writer.print("[INFO] Number of particles: {d}\n", .{self.coordinates.len});
+        try writer.print("[INFO] number of particles: {d}\n", .{self.coordinates.len});
         try writer.print("[INFO]\n", .{});
     }
 };
@@ -595,8 +596,12 @@ pub fn main() !void {
     defer env_map.deinit();
 
     std.debug.print("[INFO] MD\n", .{});
-    std.debug.print("[INFO] User = {s}\n", .{env_map.get("USER") orelse "unknown"});
-    std.debug.print("[INFO] Precision = {s}\n", .{@typeName(F)});
+    std.debug.print("[INFO] cpu = {s}\n", .{@tagName(builtin.target.cpu.arch)});
+    std.debug.print("[INFO] os = {s}\n", .{@tagName(builtin.target.os.tag)});
+    std.debug.print("[INFO] user = {s}\n", .{env_map.get("USER") orelse "unknown"});
+    std.debug.print("[INFO] zig = {s}\n", .{builtin.zig_version_string});
+    std.debug.print("[INFO] mode = {s}\n", .{@tagName(builtin.mode)});
+    std.debug.print("[INFO] precision = {s}\n", .{@typeName(F)});
     std.debug.print("[INFO]\n", .{});
 
     const args = try std.process.argsAlloc(allocator);
