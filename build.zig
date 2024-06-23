@@ -1,5 +1,10 @@
 const std = @import("std");
 
+const Precision = enum {
+    Single,
+    Double,
+};
+
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
@@ -10,6 +15,11 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    const precision = b.option(Precision, "precision", "The precision of the floating point numbers to use") orelse .Double;
+    const options = b.addOptions();
+    options.addOption(Precision, "precision", precision);
+    exe.root_module.addOptions("config", options);
 
     b.installArtifact(exe);
 

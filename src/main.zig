@@ -1,6 +1,12 @@
 const std = @import("std");
+const config = @import("config");
 
-const BOLTZMANN = 1.987204259e-3;
+const F = switch (config.precision) {
+    .Single => f32,
+    .Double => f64,
+};
+
+const BOLTZMANN: F = 1.987204259e-3;
 
 const InputBlock = struct {
     crd: []u8,
@@ -67,11 +73,11 @@ const BarostatKind = enum {
 };
 
 const DynamicsBlock = struct {
-    dt: f64,
+    dt: F,
     steps: u64,
     ensemble: ?EnsembleKind = null,
-    temperature: ?f64 = null,
-    pressure: ?f64 = null,
+    temperature: ?F = null,
+    pressure: ?F = null,
     thermostat: ?ThermostatKind = null,
     barostat: ?BarostatKind = null,
 
@@ -121,9 +127,9 @@ const Rng = struct {
 };
 
 const BoundaryBlock = struct {
-    x: ?f64 = null,
-    y: ?f64 = null,
-    z: ?f64 = null,
+    x: ?F = null,
+    y: ?F = null,
+    z: ?F = null,
 
     const Self = @This();
 
@@ -174,9 +180,9 @@ const Cfg = struct {
 
 const Coordinate = struct {
     id: u64,
-    x: f64,
-    y: f64,
-    z: f64,
+    x: F,
+    y: F,
+    z: F,
 };
 
 const Crd = struct {
@@ -193,14 +199,14 @@ const Crd = struct {
 
 const Class = struct {
     name: []const u8,
-    mass: f64,
-    charge: f64,
+    mass: F,
+    charge: F,
 };
 
 const LJ = struct {
     name: []const u8,
-    epsilon: f64,
-    sigma: f64,
+    epsilon: F,
+    sigma: F,
 };
 
 const Par = struct {
@@ -242,13 +248,13 @@ const Top = struct {
 };
 
 const Energy = struct {
-    kinetic: f64,
-    lj: f64,
+    kinetic: F,
+    lj: F,
 };
 
 const Side = struct {
-    full: f64,
-    half: f64,
+    full: F,
+    half: F,
 };
 
 const Boundary = struct {
@@ -258,7 +264,7 @@ const Boundary = struct {
 
     const Self = @This();
 
-    fn wrap(self: *Self, r: *[3]f64) void {
+    fn wrap(self: *Self, r: *[3]F) void {
         if (self.x) |x| {
             if (r[0] > x.half or r[0] < -x.half) r[0] -= x.full * @round(r[0] / x.full);
         }
@@ -273,13 +279,13 @@ const Boundary = struct {
 
 const System = struct {
     n: u64,
-    r: [][3]f64,
-    v: [][3]f64,
-    f: [][3]f64,
-    m: []f64,
-    q: []f64,
-    e: []f64,
-    s: []f64,
+    r: [][3]F,
+    v: [][3]F,
+    f: [][3]F,
+    m: []F,
+    q: []F,
+    e: []F,
+    s: []F,
     id: []u64,
     energy: Energy,
     boundary: Boundary,
@@ -290,13 +296,13 @@ const System = struct {
     fn init(allocator: std.mem.Allocator, n: u64) !Self {
         const new_system = Self{
             .n = n,
-            .r = try allocator.alloc([3]f64, n),
-            .v = try allocator.alloc([3]f64, n),
-            .f = try allocator.alloc([3]f64, n),
-            .m = try allocator.alloc(f64, n),
-            .q = try allocator.alloc(f64, n),
-            .e = try allocator.alloc(f64, n),
-            .s = try allocator.alloc(f64, n),
+            .r = try allocator.alloc([3]F, n),
+            .v = try allocator.alloc([3]F, n),
+            .f = try allocator.alloc([3]F, n),
+            .m = try allocator.alloc(F, n),
+            .q = try allocator.alloc(F, n),
+            .e = try allocator.alloc(F, n),
+            .s = try allocator.alloc(F, n),
             .id = try allocator.alloc(u64, n),
             .energy = .{ .kinetic = undefined, .lj = undefined },
             .boundary = .{},
@@ -383,14 +389,14 @@ const System = struct {
     fn setRandomVelocities(self: *Self, rng: std.Random) void {
         for (self.v) |*v| {
             v.* = .{
-                2 * rng.float(f64) - 1,
-                2 * rng.float(f64) - 1,
-                2 * rng.float(f64) - 1,
+                2 * rng.float(F) - 1,
+                2 * rng.float(F) - 1,
+                2 * rng.float(F) - 1,
             };
         }
     }
 
-    fn setRandomVelocitiesWithTemperature(self: *Self, rng: std.Random, temperature: f64) void {
+    fn setRandomVelocitiesWithTemperature(self: *Self, rng: std.Random, temperature: F) void {
         self.setRandomVelocities(rng);
         const target_temperature = temperature;
         const current_temperature = self.measureTemperature();
@@ -427,7 +433,7 @@ const System = struct {
                 const s = (si + sj) / 2;
 
                 const rj = self.r[j];
-                var dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
+                var dr = [3]F{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
                 self.boundary.wrap(&dr);
 
                 const s2 = s * s;
@@ -460,7 +466,7 @@ const System = struct {
                 const s = (si + sj) / 2;
 
                 const rj = self.r[j];
-                var dr = [3]f64{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
+                var dr = [3]F{ rj[0] - ri[0], rj[1] - ri[1], rj[2] - ri[2] };
                 self.boundary.wrap(&dr);
 
                 const s2 = s * s;
@@ -481,11 +487,11 @@ const System = struct {
         self.energy.kinetic /= 418.4;
     }
 
-    fn measureTemperature(self: *const Self) f64 {
-        var sum: f64 = 0.0;
+    fn measureTemperature(self: *const Self) F {
+        var sum: F = 0.0;
         for (self.v, self.m) |v, m| sum += (v[0] * v[0] + v[1] * v[1] + v[2] * v[2]) * m / (3.0 * BOLTZMANN);
         sum /= 418.4;
-        const temperature = sum / @as(f64, @floatFromInt(self.n));
+        const temperature = sum / @as(F, @floatFromInt(self.n));
         return temperature;
     }
 };
@@ -584,6 +590,14 @@ pub fn main() !void {
         if (deinit_status == .leak) std.testing.expect(false) catch @panic("TEST FAIL");
     }
     const allocator = gpa.allocator();
+
+    var env_map = try std.process.getEnvMap(allocator);
+    defer env_map.deinit();
+
+    std.debug.print("[INFO] MD\n", .{});
+    std.debug.print("[INFO] User = {s}\n", .{env_map.get("USER") orelse "unknown"});
+    std.debug.print("[INFO] Precision = {s}\n", .{@typeName(F)});
+    std.debug.print("[INFO]\n", .{});
 
     const args = try std.process.argsAlloc(allocator);
     defer std.process.argsFree(allocator, args);
